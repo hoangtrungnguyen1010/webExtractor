@@ -1,0 +1,6 @@
+# Ignore configuration files containing sensitive information
+config.ini
+run.py
+test.py
+*.ipynb
+*.html

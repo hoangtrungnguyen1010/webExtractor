@@ -1,0 +1,59 @@
+from sentence_transformers import SentenceTransformer, util
+import copy
+
+class TreePruner:
+    def __init__(self, model_name='sentence-transformers/all-MiniLM-L6-v2'):
+        """Initialize the TreePruner with a SentenceTransformer model."""
+        self.model = SentenceTransformer(model_name)
+
+    def calculate_similarity(self, tree, node_id, embedding_query):
+        """
+        Calculate similarity between the given node and query embedding, considering parent node similarity.
+        
+        :param tree: The tree structure containing nodes.
+        :param node_id: Identifier of the node being compared.
+        :param embedding_query: Precomputed embedding of the query.
+        :return: Similarity score combining leaf and parent node similarities.
+        """
+        text = tree[node_id].tag
+        embedding_node = self.model.encode(text, convert_to_tensor=True)
+        similarity_leaf = util.pytorch_cos_sim(embedding_query, embedding_node)
+
+        parent_id = tree.parent(node_id).identifier
+        parent_text = tree[parent_id].tag
+        embedding_parent = self.model.encode(parent_text, convert_to_tensor=True)
+        similarity_parent = util.pytorch_cos_sim(embedding_query, embedding_parent)
+
+        return similarity_leaf + similarity_parent / 2
+
+    def prune_tree(self, query, tree, remove_proportion=0.3):
+        """
+        Prune the tree by removing low similarity nodes based on the query.
+        
+        :param query: Text query to determine relevant nodes.
+        :param tree: The tree to be pruned.
+        :param remove_proportion: Proportion of least relevant nodes to remove.
+        :return: Pruned tree with irrelevant nodes removed.
+        """
+        embedding_query = self.model.encode(query, convert_to_tensor=True)
+        
+        # Compute similarity for each leaf node and its parent
+        similarities = []
+        for node in tree.all_nodes():
+            if node.is_leaf():
+                similarities.append((node.tag, node.identifier, self.calculate_similarity(tree, node.identifier, embedding_query)))
+        
+        # Sort nodes by similarity score (ascending)
+        sorted_data = sorted(similarities, key=lambda x: x[2], reverse=False)
+        
+        # Determine the number of nodes to remove
+        num_nodes_to_remove = int(len(sorted_data) * remove_proportion)
+        retrieve_tree = copy.deepcopy(tree)
+        nodes_to_remove = {sorted_data[i][1] for i in range(num_nodes_to_remove)}
+        
+        # Remove selected nodes
+        for node_id in nodes_to_remove:
+            if retrieve_tree.contains(node_id):
+                retrieve_tree.remove_node(node_id)
+        
+        return retrieve_tree
