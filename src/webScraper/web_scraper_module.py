@@ -25,6 +25,8 @@ class WebScraper:
         options.add_argument('--width=10')  # Set window width
         options.add_argument('--height=10')  # Set window height
         options.add_argument('-profile')
+        # options.add_argument("--headless")  # Run Chrome in headless mode
+
         options.add_argument(profile_dir)  # Point to the temporary profile
         options.set_preference("general.useragent.override", self.user_agent)
 

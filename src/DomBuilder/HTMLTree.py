@@ -59,38 +59,44 @@ class HTMLTree:
 
     def rank_nodes(self, node, rank=1):
         if not isinstance(node, Tag):
-            return
-            
+            return rank
+        
+        current_rank = rank
+        
         if isinstance(node, Tag) and (helper.isHeaderText(node) or node.attrs.get('header')):
-            node['rank'] = rank
-            return True
+            node['rank'] = current_rank
+            current_rank += 1
+            return current_rank
         
         if isinstance(node, Tag) and not node.attrs.get('rank') and helper.isSingleTextNode(node):
-            node['rank'] = rank
-            return None
-            
+            node['rank'] = current_rank
+            return current_rank
+        
         if node.attrs.get('type_of_section'):
             header_nodes = None
             
-            if node.attrs.get('type_of_section') in  ['media', 'list_item', 'script']:
+            if node.attrs.get('type_of_section') in ['media', 'list_item', 'script']:
                 header_nodes = helper.getHeaderNode(node)
                 if header_nodes:
-                    header_nodes['rank'] = rank
-                
-            rank += 1
+                    header_nodes['rank'] = current_rank
+                    current_rank += 1
+            
             for child in node.children:
                 if isinstance(child, Tag):
                     if header_nodes and child is header_nodes:
                         continue
                     if helper.isSingleTextNode(child):
-                        child['rank'] = rank
+                        child['rank'] = current_rank
                     else:
-                        self.rank_nodes(child, rank)
-                    
-        else:
-            for child in node.children:                
-                self.rank_nodes(child, rank)
+                        current_rank += 1
 
+                        current_rank = self.rank_nodes(child, current_rank)
+        else:
+            for child in node.children:
+                current_rank = self.rank_nodes(child, current_rank)
+        
+        return current_rank
+    
     def top_down(self, node, current_node, current_rank=1):
         """Recursively traverse the tree top-down and build structure."""
         if not isinstance(node, Tag):  # ✅ Skip text nodes
@@ -171,3 +177,25 @@ class HTMLTree:
         for i, child in enumerate(children):
             is_last = i == len(children) - 1
             self.print_tree(child.identifier, prefix + ("    " if last else "│   "), is_last)
+            
+    def get_string_tree(self, node_id='root', prefix='', last=True, result=None):
+        # Initialize the result string if it's the first call
+        if result is None:
+            result = ""
+
+        node = self.tree.get_node(node_id)
+        
+        if not node:
+            return result
+
+        # Append the current node's representation to the result string
+        result += prefix + ("└── " if last else "├── ") + str(node.number) + ":" + node.text + "\n"
+
+        # Get the children of the current node
+        children = list(self.tree.children(node.identifier))
+        for i, child in enumerate(children):
+            is_last = i == len(children) - 1
+            # Recursively build the string for the children
+            result = self.get_string_tree(child.identifier, prefix + ("    " if last else "│   "), is_last, result)
+
+        return result

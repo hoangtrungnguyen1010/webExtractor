@@ -210,12 +210,21 @@ def get_element(node):
 
 from bs4 import NavigableString
 
+
 def isSingleTextNode(node):
     """Check if a node contains only one direct text child (not wrapped inside another tag)."""
     if not isinstance(node, Tag):
         return None
     text_nodes = [child.strip() for child in node.stripped_strings]
-    return len(text_nodes) == 1 and len(text_nodes[0]) > 2
+    if len(text_nodes) == 1 and len(text_nodes[0]) > 2:
+        return True
+
+    # if not isinstance(node, Tag):
+    #     return False  # Not a valid Tag
+    # for child in node.contents:
+    #     if isinstance(child, NavigableString) and child.strip():  # Direct text
+    #         return True
+    # return False
 
 def cleanText(input_string):
     # Replace multiple consecutive newline characters with a single newline
@@ -298,8 +307,39 @@ def get_css_path(target_node):
 from bs4 import Tag, NavigableString
 
 def isHeaderText(html_node):
+    """
+    Check if the HTML node is a header tag or directly contains a single header tag
+    with only text as its content.
+
+    Args:
+        html_node (Tag): The HTML node to check.
+
+    Returns:
+        bool: True if the node is a header tag or directly contains exactly one header tag
+              with matching text content, False otherwise.
+    """
+    # If the node itself is a header tag with only text
     if html_node.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+        if html_node.text and html_node.text.strip():  # Check for non-empty string
+            return True
+
+    # Count the number of header tags in the node
+    header_tags = html_node.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+
+    if len(header_tags) != 1:  # Return False if there are 0 or more than 1 header tags
+        return False
+
+    # Check if the single header's text matches the node's text
+    header_tag = header_tags[0]
+    header_string = ''.join(header_tag.stripped_strings)
+    node_string = ''.join(html_node.stripped_strings)
+    # print(header_string)
+    # print("++++++++++++++")
+    # print(node_string)
+
+    if header_string == node_string:
         return True
+
     return False
 
 def getHeaderNode(html_node):
